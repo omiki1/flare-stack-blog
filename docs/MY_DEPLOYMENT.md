@@ -514,10 +514,14 @@ Token 的存放与使用规则：
 
 | 文档 | 内容 |
 | --- | --- |
+| **`docs/UPDATING.md`** | **日常更新：改内容 / 改代码 / 同步上游 / 回滚，以及如何接入 Workers Builds** |
 | `docs/deployment.md` | 上游官方图文部署指南（每个控制台页面怎么点） |
 | `docs/CLOUDFLARE_RESOURCES.md` | 资源名称、binding 名称、变量填写位置（**不含 Secret**） |
 | `docs/BACKUP_AND_UPDATE.md` | D1 备份、升级 upstream、迁移安全、恢复 |
 | `docs/FORK_CHANGES.md` | 本站对上游做的所有改动与冲突面 |
+
+> **部署完成之后，日常看 `docs/UPDATING.md` 就够了。**
+> 本文档记录的是「从零部署」与「管理员初始化」，属于一次性流程。
 
 ### 另一个仓库
 

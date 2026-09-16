@@ -26,7 +26,8 @@
 | 5 | 新增 | `docs/MY_DEPLOYMENT.md` | ⬜ 新增文件，不冲突 | ⬜ 不影响 |
 | 6 | 新增 | `docs/BACKUP_AND_UPDATE.md` | ⬜ 新增文件，不冲突 | ⬜ 不影响 |
 | 7 | 新增 | `docs/FORK_CHANGES.md`（本文件） | ⬜ 新增文件，不冲突 | ⬜ 不影响 |
-| 8 | 环境 | 用户级 `~/.config/husky/init.sh` | ⬜ **不在仓库内** | ⬜ 不影响 |
+| 8 | 新增 | `docs/UPDATING.md` | ⬜ 新增文件，不冲突 | ⬜ 不影响 |
+| 9 | 环境 | 用户级 `~/.config/husky/init.sh` | ⬜ **不在仓库内** | ⬜ 不影响 |
 
 **核心结论：目前只有一个文件会让上游同步产生冲突 —— `package.json`，而且只涉及 4 行脚本定义。**
 
