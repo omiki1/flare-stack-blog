@@ -228,7 +228,7 @@ git diff HEAD upstream/v2.1.0 -- migrations/*.sql
 
 # 6) 合并到本地，先不推
 git merge upstream/v2.1.0        # 或 git rebase，见 3.5
-#    有冲突 → 看 docs/PERSONALIZATION.md 的冲突面清单
+#    有冲突 → 看 docs/FORK_CHANGES.md 的冲突面清单
 
 # 7) 安装依赖（上游可能升级了依赖）
 bun install
@@ -259,7 +259,7 @@ git push origin main
 | 用 `--remote` 在本地反复试迁移 | 那是在生产库上做实验 |
 | 为了通过检查而关掉 TypeScript / ESLint / 测试 | 见第 5 节 |
 | 删除 `migrations/` 里的历史文件 | 会破坏 Wrangler 的迁移状态记录 |
-| 在 fork 里重写上游文件的大段内容 | 下次同步会持续冲突，见 `docs/PERSONALIZATION.md` |
+| 在 fork 里重写上游文件的大段内容 | 下次同步会持续冲突，见 `docs/FORK_CHANGES.md` |
 
 ### 3.5 merge 还是 rebase
 

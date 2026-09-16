@@ -451,7 +451,7 @@ GitHub OAuth Redirect URI：   https://<域名>/api/auth/callback/github
 | `docs/deployment.md` | 上游官方图文部署指南（每个控制台页面怎么点） |
 | `docs/CLOUDFLARE_RESOURCES.md` | 资源名称、binding 名称、变量填写位置（**不含 Secret**） |
 | `docs/BACKUP_AND_UPDATE.md` | D1 备份、升级 upstream、迁移安全、恢复 |
-| `docs/PERSONALIZATION.md` | 本站对上游做的所有改动与冲突面 |
+| `docs/FORK_CHANGES.md` | 本站对上游做的所有改动与冲突面 |
 
 ---
 
