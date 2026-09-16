@@ -9,7 +9,36 @@
 > 这里只写「哪个变量名需要在哪个位置填写、填什么类型的值」，具体值由站主本人录入。
 >
 > 资源 ID（D1 Database ID、KV Namespace ID、Account ID）**不是 Secret**，但属于账号
-> 内部标识。本文件只说明它们的用途与获取位置，实际值记录在站主自己的密码管理器里。
+> 内部标识。本文件记录它们，因为它们是 `wrangler.jsonc` / `.env` 的必需输入，
+> 泄露风险远低于 Token（拿到 ID 无法读写资源，还需要有效的 API Token 或账号会话）。
+> **仍然只记录 ID 本身，不记录任何能用来认证的值。**
+
+---
+
+## 0. 账号与域名（实际值）
+
+| 项 | 值 | 说明 |
+| --- | --- | --- |
+| Cloudflare 账号 ID | `ca1645341e22bf174f5658d2d375e331` | 见控制台 URL 中的那段 hash |
+| 域名 | `omiki.cc` | 在 Cloudflare Registrar 购买 |
+| Zone ID | `b4ac684cd9f2cd7a2e64c3c0bb5adba0` | `omiki.cc` 的 zone |
+| 域名状态 | Active / full | 2027-09-16 到期，自动续订 |
+| workers.dev 子域 | `omiki1` | 即 `*.omiki1.workers.dev` |
+
+### 两个站点、两个 Worker
+
+本站点是**主站 + 博客后台**的双站点结构，两套相互独立部署：
+
+| 站点 | 域名 | Worker | 代码仓库 | 技术形态 |
+| --- | --- | --- | --- | --- |
+| 主站 / Portfolio | `omiki.cc` | `omiki1-home` | `omiki1/between-tides` | Next.js 16 静态导出，仅静态资源 |
+| 博客 / CMS 后台 | `blog.omiki.cc` | `omiki1-blog` | `omiki1/flare-stack-blog` | TanStack Start SSR + D1/R2/KV/DO/Queue |
+
+> **为什么是两个 Worker 而不是一个：**
+> 主站是纯静态产物，不需要任何服务端资源；博客是完整的 Serverless 应用，需要 6 个绑定。
+> 用一个 Worker 承载两者会强行给静态站引入一套它不需要的运行时依赖，
+> 也违反了「如果一个功能普通静态托管就能完成，不要强行上复杂架构」的原则。
+> 两者的唯一共同点是都使用同一个 zone `omiki.cc`。
 
 ---
 
@@ -17,13 +46,14 @@
 
 所有资源统一使用 `omiki1-blog` 前缀，便于在 Cloudflare 控制台里一眼识别归属。
 
-| 资源类型 | 资源名称 | 出现在哪个变量里 |
-| --- | --- | --- |
-| Worker | `omiki1-blog` | `WORKER_NAME` |
-| D1 数据库 | `omiki1-blog-db` | `D1_DATABASE_ID`（填 **ID**，不是名称） |
-| R2 存储桶 | `omiki1-blog-media` | `BUCKET_NAME`（填**名称**） |
-| Queue 队列 | `omiki1-blog-queue` | `QUEUE_NAME`（填**名称**） |
-| KV 命名空间 | `omiki1-blog-cache` | `KV_NAMESPACE_ID`（填 **ID**，不是名称） |
+| 资源类型 | 资源名称 | 出现在哪个变量里 | 实际 ID / 值 |
+| --- | --- | --- | --- |
+| Worker（博客） | `omiki1-blog` | `WORKER_NAME` | — |
+| Worker（主站） | `omiki1-home` | — | 静态资源，无变量 |
+| D1 数据库 | `omiki1-blog-db` | `D1_DATABASE_ID`（填 **ID**，不是名称） | `4216488c-a345-4f7d-a387-ccbe9b846b84` |
+| R2 存储桶 | `omiki1-blog-media` | `BUCKET_NAME`（填**名称**） | 名称即值，2026-09-16 创建 |
+| Queue 队列 | `omiki1-blog-queue` | `QUEUE_NAME`（填**名称**） | `8c88a95dc4d74548850f3eac1cde7743` |
+| KV 命名空间 | `omiki1-blog-cache` | `KV_NAMESPACE_ID`（填 **ID**，不是名称） | `6a34cbc64ec04ead8e251fc4d3071e97` |
 
 > **易错点：** D1 与 KV 填 **ID**，R2 与 Queue 填 **名称**。
 > 这是本项目 `wrangler.example.jsonc` 与 `docs/deployment.md` 的实际约定，
@@ -31,16 +61,22 @@
 
 ### 域名变量
 
-| 变量 | 用途 | 当前状态 |
+| 变量 | 用途 | 实际值 |
 | --- | --- | --- |
-| `DOMAIN` | 博客纯域名（无协议、无路径） | **待站主确定**，例如 `blog.omiki1.com` |
-| `BETTER_AUTH_URL` | 完整访问地址（含 `https://`） | **待站主确定**，必须与 `DOMAIN` 同域 |
-| `ZONE_NAME` | 仅在 `ROUTE=1` 路由模式下需要 | 默认从 `DOMAIN` 自动推导 |
-| `ROUTE` | 设为 `1` 时改用 Workers Routes 而非 Custom Domain | 默认不设，即使用 Custom Domain |
+| `DOMAIN` | 博客纯域名（无协议、无路径） | `blog.omiki.cc` |
+| `BETTER_AUTH_URL` | 完整访问地址（含 `https://`） | `https://blog.omiki.cc` |
+| `NEXT_PUBLIC_SITE_URL` | 主站公开地址（写在 `.env.production`） | `https://omiki.cc` |
+| `ZONE_NAME` | 仅在 `ROUTE=1` 路由模式下需要 | 未使用（默认 Custom Domain，自动推导） |
+| `ROUTE` | 设为 `1` 时改用 Workers Routes 而非 Custom Domain | 未设置 |
 
-域名**不得硬编码**。项目已经做到了这一点：`DOMAIN` 只出现在
-`.env` / `.dev.vars` 与 `src/lib/env/server.env.ts` 的 schema 里，
-`wrangler.jsonc` 由 `scripts/prepare-wrangler-config.ts` 在构建期从环境变量生成。
+域名**不得硬编码**，两个仓库都做到了：
+
+- 博客：`DOMAIN` 只出现在 `.env` / `.dev.vars` 与 `src/lib/env/server.env.ts` 的 schema 里，
+  `wrangler.jsonc` 由 `scripts/prepare-wrangler-config.ts` 在构建期从环境变量生成。
+- 主站：域名只出现在两处 —— `.env.production` 的 `NEXT_PUBLIC_SITE_URL` 与
+  `wrangler.jsonc` 的 `routes[].pattern`。
+
+**换域名时的完整清单见 `docs/MY_DEPLOYMENT.md` 第 6 节。**
 
 ---
 

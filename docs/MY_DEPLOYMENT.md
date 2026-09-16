@@ -18,44 +18,54 @@
 | 本仓库 | `omiki1/flare-stack-blog`（上游 Fork），fork 的 `main` 是 Cloudflare 监听的生产分支 |
 | 上游远端 | `upstream` → `https://github.com/du2333/flare-stack-blog.git` |
 | 本仓库远端 | `origin` → `https://github.com/omiki1/flare-stack-blog.git` |
-| 博客域名 | **待站主确定**（占位：`blog.omiki1.com`） |
-| 主站域名 | **待站主确定**（占位：`omiki1.com`，由另一套静态站承载） |
+| **博客域名** | **`blog.omiki.cc`** ✅ 已部署、已绑定 |
+| **主站域名** | **`omiki.cc`** ✅ 已部署（由 `omiki1-home` Worker 承载静态站） |
+| Cloudflare 账号 | `ca1645341e22bf174f5658d2d375e331` |
+| Zone | `omiki.cc` / `b4ac684cd9f2cd7a2e64c3c0bb5adba0` / Active |
+| 四项资源 | D1 ✅ KV ✅ Queue ✅ R2 ✅（2026-09-16 创建） |
+| 生产 D1 迁移 | ✅ 22 个迁移全部应用，`user` 表 0 条 |
+| Worker 部署 | ✅ `omiki1-blog` 版本 `7094182e`，12 个 binding 全部就位 |
+| 运行时变量与 Secret | ✅ 6 项已写入（4 个 secret_text + DOMAIN/BETTER_AUTH_URL/ENVIRONMENT 等） |
+| GitHub OAuth | ✅ OAuth App 已创建，回调 `https://blog.omiki.cc/api/auth/callback/github` |
+| **管理员账号** | ⬜ **尚未创建 —— 需要站主本人首次登录（见第 3 节，最高优先级）** |
+| 主站安全响应头 | ✅ 已在真实响应中验证生效 |
 | 本地开发 | ✅ 已验证可用（见第 4 节） |
-| 生产部署 | ⬜ 尚未执行 |
-| 管理员账号 | ⬜ 尚未创建 |
 
-> **域名待定不影响现在的工作。** 所有域名都通过 `DOMAIN` / `BETTER_AUTH_URL`
-> 环境变量注入，代码里没有硬编码；确定域名后只需填变量再部署。
-> 但要注意：**Custom Domain 必须在部署时就已经存在于同一个 Cloudflare 账号内**，
-> 否则 `wrangler deploy` 会因为无法绑定域名而失败。
+### 剩余待办
+
+1. **【最高优先级】站主本人登录 `https://blog.omiki.cc`，成为管理员。** 见第 3 节。
+2. 新建的 API Token 使用完毕后撤销（见第 9 节「Token 卫生」）。
+3. Workers Builds（GitHub 自动部署）尚未接入 —— 目前是本地 `wrangler deploy` 部署。
+4. CSP 尚未启用（主站），原因与做法见 `between-tides` 仓库的 `public/_headers` 注释。
 
 ---
 
 ## 1. 目标架构
 
+两个站点、两个 Worker，互相独立部署：
+
 ```text
-                    Cloudflare
-                        │
-          ┌─────────────┴──────────────┐
-          │                            │
-    主站域名（待定）              博客域名（待定）
-          │                            │
-   wuwa 静态站                  Flare Stack Blog
-   (Next.js 静态导出)           (TanStack Start SSR)
-          │                            │
-   Workers 静态资源              Workers + 静态资源
-                                       │
-               ┌─────────┬─────────┬─────────┼──────────┐
-               ↓         ↓         ↓         ↓          ↓
-              D1        R2        KV       Queues       DO
-               │         │         │          │          │
-            内容数据库  媒体     公开缓存   异步通知   限流 + 发布串行
+                        Cloudflare
+                            │
+              ┌─────────────┴──────────────┐
+              │                            │
+        omiki.cc                   blog.omiki.cc
+              │                            │
+   Worker: omiki1-home            Worker: omiki1-blog
+   (Next.js 16 静态导出)          (TanStack Start SSR)
+              │                            │
+        仅静态资源                          │
+                          ┌─────────┬──────┴────┬─────────┬──────────┐
+                          ↓         ↓           ↓         ↓          ↓
+                         D1        R2          KV      Queues       DO
+                          │         │           │         │          │
+                       内容库     媒体      公开缓存   异步通知   限流+发布串行
 ```
 
-**不使用：** 传统 VPS、Nginx、MySQL Server、Redis Server、Docker 常驻后端、手动 SSL。
+`omiki1-home` 不绑定任何服务端资源。把静态站和 CMS 分成两个 Worker，
+是为了不给静态站强行引入它不需要的运行时依赖。
 
-**两个站点的关系：** 相互独立部署，互不依赖。主站是纯静态导出，不需要 D1/R2/KV；
-博客是完整的 Serverless 应用，需要上面全套资源。
+**不使用：** 传统 VPS、Nginx、MySQL Server、Redis Server、Docker 常驻后端、手动 SSL。
 
 ---
 
@@ -444,7 +454,63 @@ GitHub OAuth Redirect URI：   https://<域名>/api/auth/callback/github
 
 ---
 
-## 8. 相关文档
+## 8. 首次部署实际执行记录（2026-09-16）
+
+留档用于对照，也便于将来重做时知道哪些步骤是必须的、哪些是可以自动化的。
+
+| # | 动作 | 方式 | 结果 |
+| --- | --- | --- | --- |
+| 1 | 域名 `omiki.cc` 接入 Cloudflare | 站主（Registrar 购买） | ✅ Active |
+| 2 | 开通 R2 服务 | **站主（须接受定价条款 + 付款方式）** | ✅ 无法由脚本代做 |
+| 3 | 创建 GitHub OAuth App | **站主**（回调 `https://blog.omiki.cc/api/auth/callback/github`） | ✅ |
+| 4 | 创建 D1 `omiki1-blog-db` | API / wrangler | ✅ |
+| 5 | 创建 KV `omiki1-blog-cache` | API / wrangler | ✅ |
+| 6 | 创建 Queue `omiki1-blog-queue` | API / wrangler | ✅ |
+| 7 | 创建 R2 桶 `omiki1-blog-media` | wrangler | ✅ 需先完成第 2 步 |
+| 8 | 生成 `BETTER_AUTH_SECRET` | 本机 CSPRNG，32 字节 → 64 位十六进制 | ✅ 存于仓库外的密钥目录 |
+| 9 | `bun run wrangler:prepare` | 由 `.env` 生成 `wrangler.jsonc` | ✅ |
+| 10 | `bun run db:migrate` | 生产 D1 | ✅ 22 个迁移全绿 |
+| 11 | `wrangler secret bulk` | 写入 6 项运行时变量与 Secret | ✅ |
+| 12 | `bun run build` | Vite 构建 | ✅ 18.38s，server bundle 9.8 MB |
+| 13 | `wrangler deploy --env=""` | 部署 + 绑定自定义域 + 注册 cron | ✅ |
+| 14 | 主站构建与部署 | `omiki1-home` → `omiki.cc` | ✅ 381 个静态资源 |
+| 15 | 主站安全响应头 | `public/_headers` | ✅ 已在真实响应中验证 |
+| 16 | 站主首次登录成为管理员 | **站主** | ⬜ 待完成 |
+
+### 过程中遇到的两个阻碍（都不是代码问题）
+
+1. **账户没有 `workers.dev` 子域**，`wrangler deploy` 报 `code: 10063`。
+   Cloudflare 要求先有 workers.dev 子域才能部署。
+   控制台侧的做法是「首次打开 Workers & Pages 落地页会自动创建」；
+   也可以用 API 直接注册：`PUT /accounts/{id}/workers/subdomain`，body `{"subdomain":"omiki1"}`。
+   本站已注册为 `omiki1`，即 `*.omiki1.workers.dev`。
+
+2. **R2 未开通时无法创建桶**，报 `code: 10042 Please enable R2 through the Cloudflare Dashboard`。
+   这一步**必须站主本人操作**：需要接受 R2 定价条款并绑定付款方式，
+   脚本无法代做，也不应该代做。
+
+### Token 卫生
+
+首次部署使用了一个自定义 API Token。**该 Token 只应作为一次性工具使用，用完立即撤销。**
+
+Token 的存放与使用规则：
+
+- 存放在**任何仓库之外**（本站放在用户主目录下的密钥目录），权限尽量收紧。
+- 只存在于环境变量里，命令输出中不得出现其值。
+- 不写入 `.env`、`.dev.vars`、`wrangler.jsonc` 或任何入库文件。
+
+**首次部署完成后应做的事：**
+
+1. 打开 <https://dash.cloudflare.com/profile/api-tokens>
+2. 找到首次部署用的 Token → **Roll** 或 **Delete**
+3. 需要长期自动化时，新建一个**权限最小化**的 Token，并且只放在本机密钥目录
+
+> 如果 Token 曾经出现在聊天记录、截图、终端日志或任何可能被留存的地方，
+> **必须视为已泄露并立即撤销**。
+
+---
+
+## 9. 相关文档
 
 | 文档 | 内容 |
 | --- | --- |
@@ -452,6 +518,12 @@ GitHub OAuth Redirect URI：   https://<域名>/api/auth/callback/github
 | `docs/CLOUDFLARE_RESOURCES.md` | 资源名称、binding 名称、变量填写位置（**不含 Secret**） |
 | `docs/BACKUP_AND_UPDATE.md` | D1 备份、升级 upstream、迁移安全、恢复 |
 | `docs/FORK_CHANGES.md` | 本站对上游做的所有改动与冲突面 |
+
+### 另一个仓库
+
+主站 `omiki.cc` 的代码在**独立仓库** `omiki1/between-tides`（Next.js 16 静态导出），
+与本站点没有代码依赖关系，只共用同一个 Cloudflare zone。其部署配置为
+该仓库根目录的 `wrangler.jsonc` 与 `public/_headers`。
 
 ---
 
