@@ -1,0 +1,29 @@
+# Keep every text file at LF in the repository *and* in the working tree.
+#
+# Why: the formatter check (`oxfmt --check`, part of `bun check`) compares raw
+# bytes. On Windows, Git's default `core.autocrlf=true` checks text files out
+# with CRLF, which makes `oxfmt --check` report every file as misformatted —
+# on this checkout that was 587 of 588 files, so the repository's own quality
+# gate could never pass. Declaring `eol=lf` here overrides `core.autocrlf` for
+# this repository, so `git checkout` writes LF on every platform and the check
+# is meaningful again, with no need for `oxfmt --write` to rewrite the tree.
+#
+# Also normalizes existing CRLF content on the next `git add`.
+* text=auto eol=lf
+
+# Binary assets: never touch their bytes.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.mp3 binary
+*.wav binary
+*.pdf binary
+*.zip binary
